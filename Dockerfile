@@ -33,28 +33,6 @@ RUN curl -fLo docker.tgz https://download.docker.com/linux/static/stable/x86_64/
         "https://github.com/docker/buildx/releases/download/v${BUILDX_VERSION}/buildx-v${BUILDX_VERSION}.linux-amd64" \
     && chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 
-# Install MariaDB
-RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends \
-    mariadb-server \
-    && rm -rf /var/lib/apt/lists/*
-
-# Configure MariaDB
-RUN echo 'sort_buffer_size = 256000000' >> /etc/mysql/mariadb.conf.d/50-server.cnf
-
-# Set the root password for MariaDB
-RUN service mariadb start \
-    && mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';" \
-    && service mariadb stop
-
-# Install Redis
-RUN curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list \
-    && apt-get update -y \
-    && apt-get install -y --no-install-recommends \
-    redis \
-    && rm -rf /var/lib/apt/lists/*
-    
 FROM mcr.microsoft.com/dotnet/runtime-deps:6.0-jammy
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -67,6 +45,26 @@ RUN apt-get update -y \
     sudo \
     lsb-release \
     git \
+    curl \
+    unzip \
+    gpg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install MariaDB
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends \
+    mariadb-server \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure MariaDB
+RUN echo 'sort_buffer_size = 256000000' >> /etc/mysql/mariadb.conf.d/50-server.cnf
+
+# Install Redis
+RUN curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list \
+    && apt-get update -y \
+    && apt-get install -y --no-install-recommends \
+    redis \
     && rm -rf /var/lib/apt/lists/*
 
 RUN adduser --disabled-password --gecos "" --uid 1001 runner \

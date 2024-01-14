@@ -39,7 +39,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV RUNNER_MANUALLY_TRAP_SIG=1
 ENV ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1
 ENV ImageOS=ubuntu22
-ENV ACCEPT_EULA=Y
 
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
@@ -51,39 +50,23 @@ RUN apt-get update -y \
     gpg \
     && rm -rf /var/lib/apt/lists/*
     
-# Mysql setting up root password
-RUN set -ex; \
-	{ \
-		echo "mariadb-server" mysql-server/root_password password 'unused'; \
-		echo "mariadb-server" mysql-server/root_password_again password 'unused'; \
-	} | debconf-set-selections; \
-	apt-get update; \
-# postinst script creates a datadir, so avoid creating it by faking its existance.
-	mkdir -p /var/lib/mysql/mysql ; touch /var/lib/mysql/mysql/user.frm ; \
-# mariadb-backup is installed at the same time so that `mysql-common` is only installed once from just mariadb repos
-	apt-get install -y --no-install-recommends mariadb-server mariadb-backup socat \
-	; \
-	rm -rf /var/lib/apt/lists/*; \
-# purge and re-create /var/lib/mysql with appropriate ownership
-	rm -rf /var/lib/mysql /etc/mysql/mariadb.conf.d/50-mysqld_safe.cnf; \
-	mkdir -p /var/lib/mysql /run/mysqld; \
-	chown -R mysql:mysql /var/lib/mysql /run/mysqld; \
-# ensure that /run/mysqld (used for socket and lock files) is writable regardless of the UID our mysqld instance ends up having at runtime
-	chmod 1777 /run/mysqld; \
-# comment out a few problematic configuration values
-	find /etc/mysql/ -name '*.cnf' -print0 \
-		| xargs -0 grep -lZE '^(bind-address|log|user\s)' \
-		| xargs -rt -0 sed -Ei 's/^(bind-address|log|user\s)/#&/'; \
-# don't reverse lookup hostnames, they are usually another container
-	printf "[mariadb]\nhost-cache-size=0\nskip-name-resolve\n" > /etc/mysql/mariadb.conf.d/05-skipcache.cnf; \
-# Issue #327 Correct order of reading directories /etc/mysql/mariadb.conf.d before /etc/mysql/conf.d (mount-point per documentation)
-	if [ -L /etc/mysql/my.cnf ]; then \
-# 10.5+
-		sed -i -e '/includedir/ {N;s/\(.*\)\n\(.*\)/\n\2\n\1/}' /etc/mysql/mariadb.cnf; \
-	fi
+# Imposta la password di root per MySQL
+ENV MYSQL_ROOT_PASSWORD=root
+RUN echo "mysql-server mysql-server/root_password password $MYSQL_ROOT_PASSWORD" | debconf-set-selections \
+    && echo "mysql-server mysql-server/root_password_again password $MYSQL_ROOT_PASSWORD" | debconf-set-selections
 
-# Configure MariaDB
-RUN echo 'sort_buffer_size = 256000000' >> /etc/mysql/mariadb.conf.d/50-server.cnf
+# Imposta la variabile ACCEPT_EULA a Y
+ENV ACCEPT_EULA=Y
+
+# Installa il client MySQL
+RUN apt-get update \
+    && apt-get install -y mysql-client
+
+# Installa il server MySQL
+RUN apt-get install -y mysql-server
+
+# Installa gli strumenti di sviluppo MySQL
+RUN apt-get install -y libmysqlclient-dev
 
 # Install Redis
 RUN curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg \

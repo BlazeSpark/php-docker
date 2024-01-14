@@ -47,7 +47,7 @@ RUN apt-get update -y \
     git \
     curl \
     unzip \
-    gpg
+    gpg \
     && rm -rf /var/lib/apt/lists/*
 
 # Install MariaDB

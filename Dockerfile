@@ -40,7 +40,6 @@ ENV RUNNER_MANUALLY_TRAP_SIG=1
 ENV ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1
 ENV ImageOS=ubuntu22
 ENV ACCEPT_EULA=Y
-ENV MYSQL_ROOT_PASSWORD=root
 
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
@@ -52,9 +51,6 @@ RUN apt-get update -y \
     gpg \
     && rm -rf /var/lib/apt/lists/*
     
-ARG MARIADB_VERSION=1:11.4.0+maria~ubu2204
-ENV MARIADB_VERSION $MARIADB_VERSION
-
 # Mysql setting up root password
 RUN set -ex; \
 	{ \
@@ -65,7 +61,7 @@ RUN set -ex; \
 # postinst script creates a datadir, so avoid creating it by faking its existance.
 	mkdir -p /var/lib/mysql/mysql ; touch /var/lib/mysql/mysql/user.frm ; \
 # mariadb-backup is installed at the same time so that `mysql-common` is only installed once from just mariadb repos
-	apt-get install -y --no-install-recommends mariadb-server="$MARIADB_VERSION" mariadb-backup socat \
+	apt-get install -y --no-install-recommends mariadb-server mariadb-backup socat \
 	; \
 	rm -rf /var/lib/apt/lists/*; \
 # purge and re-create /var/lib/mysql with appropriate ownership

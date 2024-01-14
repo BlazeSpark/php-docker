@@ -33,6 +33,23 @@ RUN curl -fLo docker.tgz https://download.docker.com/linux/static/stable/x86_64/
         "https://github.com/docker/buildx/releases/download/v${BUILDX_VERSION}/buildx-v${BUILDX_VERSION}.linux-amd64" \
     && chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 
+FROM mcr.microsoft.com/dotnet/runtime-deps:6.0-jammy
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV RUNNER_MANUALLY_TRAP_SIG=1
+ENV ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1
+ENV ImageOS=ubuntu22
+
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends \
+    sudo \
+    lsb-release \
+    git \
+    curl \
+    unzip \
+    gpg
+    && rm -rf /var/lib/apt/lists/*
+
 # Install MariaDB
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
@@ -47,9 +64,7 @@ RUN service mariadb start \
     && sleep 5 \
     && while ! mysqladmin ping -hlocalhost --silent; do sleep 1; done
 
-RUN mysql -e "SET PASSWORD FOR 'root'@'localhost' = PASSWORD('root');"
-
-RUN mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';" 
+RUN sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';" 
 
 RUN service mariadb stop
     
@@ -59,20 +74,6 @@ RUN curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
     redis \
-    && rm -rf /var/lib/apt/lists/*
-    
-FROM mcr.microsoft.com/dotnet/runtime-deps:6.0-jammy
-
-ENV DEBIAN_FRONTEND=noninteractive
-ENV RUNNER_MANUALLY_TRAP_SIG=1
-ENV ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1
-ENV ImageOS=ubuntu22
-
-RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends \
-    sudo \
-    lsb-release \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
 RUN adduser --disabled-password --gecos "" --uid 1001 runner \

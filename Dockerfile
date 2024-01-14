@@ -97,6 +97,5 @@ SHELL ["/bin/bash", "--login", "-i", "-c"]
 ENV NODE_VERSION=20.11.0
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 RUN source ~/.nvm/nvm.sh && nvm install ${NODE_VERSION} && nvm use ${NODE_VERSION} && nvm alias default v${NODE_VERSION}
-SHELL ["/bin/bash", "--login", "-c"]
 RUN node --version
 RUN npm --version

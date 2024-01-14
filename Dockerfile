@@ -42,12 +42,13 @@ RUN apt-get update -y \
 # Configure MariaDB
 RUN echo 'sort_buffer_size = 256000000' >> /etc/mysql/mariadb.conf.d/50-server.cnf
 
-# Set the root password for MariaDB
+# Set the root password for MariaDB   
 RUN service mariadb start \
-    sleep 5 \
+    && sleep 5 \
+    && while ! mysqladmin ping -hlocalhost --silent; do sleep 1; done \
     && mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';" \
     && service mariadb stop
-
+    
 # Install Redis
 RUN curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list \

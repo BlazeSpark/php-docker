@@ -95,9 +95,6 @@ USER runner
 # Install NodeJS and NPM
 ENV NODE_VERSION=20.11.0
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-ENV NVM_DIR=/runner/.nvm
-RUN source ~/.bashrc && nvm install ${NODE_VERSION}
-RUN nvm use v${NODE_VERSION}
-RUN nvm alias default v${NODE_VERSION}
+RUN source ~/.nvm/nvm.sh && nvm install ${NODE_VERSION} && nvm use ${NODE_VERSION} && nvm alias default v${NODE_VERSION}
 RUN node --version
 RUN npm --version

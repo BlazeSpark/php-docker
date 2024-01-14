@@ -45,9 +45,13 @@ RUN echo 'sort_buffer_size = 256000000' >> /etc/mysql/mariadb.conf.d/50-server.c
 # Set the root password for MariaDB   
 RUN service mariadb start \
     && sleep 5 \
-    && while ! mysqladmin ping -hlocalhost --silent; do sleep 1; done \
-    && mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';" \
-    && service mariadb stop
+    && while ! mysqladmin ping -hlocalhost --silent; do sleep 1; done
+
+RUN mysql -e "SET PASSWORD FOR 'root'@'localhost' = PASSWORD('root');"
+
+RUN mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';" 
+
+RUN service mariadb stop
     
 # Install Redis
 RUN curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg \

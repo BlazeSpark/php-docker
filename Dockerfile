@@ -44,6 +44,7 @@ RUN echo 'sort_buffer_size = 256000000' >> /etc/mysql/mariadb.conf.d/50-server.c
 
 # Set the root password for MariaDB
 RUN service mariadb start \
+    sleep 5 \
     && mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';" \
     && service mariadb stop
 

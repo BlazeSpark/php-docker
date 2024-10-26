@@ -82,6 +82,14 @@ RUN apt-get update -qq && \
 # Configure MariaDB
 RUN echo 'sort_buffer_size = 256000000' >> /etc/mysql/mariadb.conf.d/50-server.cnf
 
+# Installa Redis
+RUN apt-get update -qq && \
+    apt-get install -y redis-server && \
+    # Configura Redis per eseguire tutte le interfacce di rete (opzionale, solo per test)
+    sed -i 's/^# bind 127.0.0.1 ::1/bind 0.0.0.0/' /etc/redis/redis.conf && \
+    # Imposta Redis in modalità background
+    echo "daemonize yes" >> /etc/redis/redis.conf
+
 WORKDIR /home/runner
 
 RUN curl -f -L -o runner.tar.gz https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz \

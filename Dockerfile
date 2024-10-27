@@ -1,5 +1,5 @@
 # Source: https://github.com/dotnet/dotnet-docker
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/runtime-deps:6.0-jammy AS build
+FROM mcr.microsoft.com/dotnet/runtime-deps:6.0-jammy AS build
 
 # Replace value with the latest runner release version
 # source: https://github.com/actions/runner/releases

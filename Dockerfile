@@ -1,5 +1,5 @@
 # Source: https://github.com/dotnet/dotnet-docker
-FROM mcr.microsoft.com/dotnet/runtime-deps:6.0-jammy AS build
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/runtime-deps:6.0-jammy AS build
 
 # Replace value with the latest runner release version
 # source: https://github.com/actions/runner/releases
@@ -23,9 +23,11 @@ RUN apt-get update -qq \
   && apt-get upgrade -qq -y \
   && apt-get install -q -y --no-install-recommends \
     curl \
+    wget \
     unzip \
     sudo\
     jq \
+    gnupg \
     git \
     gpg \
     openssl \
@@ -56,9 +58,10 @@ RUN apt-get update -qq \
     php8.3-xmlreader  \
     php8.3-posix \
     php8.3-redis \
-    php8.3-mysql
+    php8.3-mysql \
+    php8.3-pcov
 
-COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
+COPY  --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 RUN adduser --disabled-password --gecos "" --uid 1001 runner \
     && groupadd docker --gid 123 \
@@ -89,6 +92,24 @@ RUN apt-get update -qq && \
     sed -i 's/^# bind 127.0.0.1 ::1/bind 0.0.0.0/' /etc/redis/redis.conf && \
     # Imposta Redis in modalità background
     echo "daemonize yes" >> /etc/redis/redis.conf
+
+# Check available versions here: https://www.ubuntuupdates.org/package/google_chrome/stable/main/base/google-chrome-stable
+ARG CHROME_VERSION="130.0.6723.69"
+RUN wget --no-verbose -O /tmp/chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}-1_amd64.deb \
+  && apt install -y /tmp/chrome.deb \
+  && rm /tmp/chrome.deb \
+  rm -f /etc/cron.daily/google-chrome /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.list.save && \
+  echo "CHROME_BIN=/usr/bin/google-chrome" >> /etc/environment
+
+ENV CHROMEDRIVER_DIR="/usr/local/share/chromedriver-linux64"
+
+RUN  mkdir -p $CHROMEDRIVER_DIR && \
+    curl -L -o /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chromedriver-linux64.zip" && \
+    unzip -qq /tmp/chromedriver.zip -d "$CHROMEDRIVER_DIR" && \
+    chmod +x "$CHROMEDRIVER_DIR/chromedriver" && \
+    ln -s "$CHROMEDRIVER_DIR/chromedriver" /usr/bin/ && \
+    echo "CHROMEWEBDRIVER=$CHROMEDRIVER_DIR" >> /etc/environment && \
+    rm -f /tmp/chromedriver.zip
 
 WORKDIR /home/runner
 

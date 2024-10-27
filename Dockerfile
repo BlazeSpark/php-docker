@@ -10,115 +10,63 @@ ARG RUNNER_ARCH="x64"
 # source: https://github.com/actions/runner-container-hooks/releases
 # ex: 0.3.1
 ARG RUNNER_CONTAINER_HOOKS_VERSION="0.6.1"
-
 ARG NODE_VERSION=20
+ARG MYSQL_ROOT_PASSWORD=root
+ARG CHROME_VERSION="130.0.6723.69"
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV RUNNER_MANUALLY_TRAP_SIG=1
-ENV ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1
+ENV DEBIAN_FRONTEND=noninteractive \
+    RUNNER_MANUALLY_TRAP_SIG=1 \
+    ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1 \
+    CHROMEDRIVER_DIR="/usr/local/share/chromedriver-linux64" \
+    CHROME_BIN="/usr/bin/google-chrome" \
+    CHROMEWEBDRIVER="/usr/local/share/chromedriver-linux64"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN apt-get update -qq \
-  && apt-get upgrade -qq -y \
-  && apt-get install -q -y --no-install-recommends \
-    curl \
-    wget \
-    unzip \
-    sudo\
-    jq \
-    gnupg \
-    git \
-    gpg \
-    openssl \
-    gpg-agent \
-    software-properties-common \
-  && curl -sL https://deb.nodesource.com/setup_20.x | bash - \
-  && apt-get install -q -y \
-    nodejs \
-    && apt-get update -qq \
-    && apt-add-repository ppa:ondrej/php -y \
-    && apt-get update -qq \
-    && apt-get install -q -y --no-install-recommends \
-    php8.3 \
-    php8.3-ctype \
-    php8.3-curl \
-    php8.3-fileinfo \
-    php8.3-fpm \
-    php8.3-iconv \
-    php8.3-mbstring \
-    php8.3-phar \
-    php8.3-simplexml \
-    php8.3-xml \
-    php8.3-xmlwriter \
-    php8.3-zip \
-    php8.3-gd \
-    php8.3-intl  \
-    php8.3-tokenizer  \
-    php8.3-xmlreader  \
-    php8.3-posix \
-    php8.3-redis \
-    php8.3-mysql \
-    php8.3-pcov
+RUN apt-get update -qq && \
+    apt-get upgrade -qq -y && \
+    apt-get install -q -y --no-install-recommends \
+    curl wget unzip sudo jq gnupg git gpg openssl gpg-agent software-properties-common \
+    && curl -sL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+    apt-add-repository ppa:ondrej/php -y && \
+    apt-get update -qq && \
+    apt-get install -q -y --no-install-recommends \
+    nodejs php8.3 php8.3-{ctype,curl,fileinfo,fpm,iconv,mbstring,phar,simplexml,xml,xmlwriter,zip,gd,intl,tokenizer,xmlreader,posix,redis,mysql,pcov} \
+    && apt-get install -q -y mariadb-server redis-server \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY  --from=composer:latest /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 RUN adduser --disabled-password --gecos "" --uid 1001 runner \
     && groupadd docker --gid 123 \
-    && usermod -aG sudo runner \
-    && usermod -aG docker runner \
+    && usermod -aG sudo,docker runner \
     && echo "%sudo   ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers \
     && echo "Defaults env_keep += \"DEBIAN_FRONTEND\"" >> /etc/sudoers
 
-# Imposta la password di root per MariaDB
-ARG MYSQL_ROOT_PASSWORD=root
-
-# Installazione di MariaDB con configurazione della password
-RUN apt-get update -qq && \
-    echo "mariadb-server mariadb-server/root_password password $MYSQL_ROOT_PASSWORD" | debconf-set-selections && \
-    echo "mariadb-server mariadb-server/root_password_again password $MYSQL_ROOT_PASSWORD" | debconf-set-selections && \
-    apt-get install -y mariadb-server && \
-    service mariadb start && \
-    # Disabilita l'uso di unix_socket per l'utente root e abilita l'autenticazione con password
-    mariadb -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; FLUSH PRIVILEGES;"
-
 # Configure MariaDB
-RUN echo 'sort_buffer_size = 256000000' >> /etc/mysql/mariadb.conf.d/50-server.cnf
+RUN echo "mariadb-server mariadb-server/root_password password $MYSQL_ROOT_PASSWORD" | debconf-set-selections && \
+    echo "mariadb-server mariadb-server/root_password_again password $MYSQL_ROOT_PASSWORD" | debconf-set-selections && \
+    service mariadb start && \
+    mariadb -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; FLUSH PRIVILEGES;" && \
+    echo 'sort_buffer_size = 256000000' >> /etc/mysql/mariadb.conf.d/50-server.cnf
 
-# Installa Redis
+# Configure Redis to listen on all interfaces
+RUN sed -i 's/^# bind 127.0.0.1 ::1/bind 0.0.0.0/' /etc/redis/redis.conf
+
+# Install Chrome
 RUN apt-get update -qq && \
-    apt-get install -y redis-server && \
-    # Configura Redis per eseguire tutte le interfacce di rete (opzionale, solo per test)
-    sed -i 's/^# bind 127.0.0.1 ::1/bind 0.0.0.0/' /etc/redis/redis.conf && \
-    # Imposta Redis in modalità background
-    echo "daemonize yes" >> /etc/redis/redis.conf
-
-# Check available versions here: https://www.ubuntuupdates.org/package/google_chrome/stable/main/base/google-chrome-stable
-ARG CHROME_VERSION="130.0.6723.69"
-RUN wget --no-verbose -O /tmp/chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}-1_amd64.deb \
-  && apt install -y /tmp/chrome.deb \
-  && rm /tmp/chrome.deb \
-  rm -f /etc/cron.daily/google-chrome /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.list.save && \
-  echo "CHROME_BIN=/usr/bin/google-chrome" >> /etc/environment
-
-ENV CHROMEDRIVER_DIR="/usr/local/share/chromedriver-linux64"
-
-RUN  mkdir -p $CHROMEDRIVER_DIR && \
-    curl -L -o /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chromedriver-linux64.zip" && \
-    unzip -qq /tmp/chromedriver.zip -d "$CHROMEDRIVER_DIR" && \
-    chmod +x "$CHROMEDRIVER_DIR/chromedriver" && \
-    ln -s "$CHROMEDRIVER_DIR/chromedriver" /usr/bin/ && \
-    echo "CHROMEWEBDRIVER=$CHROMEDRIVER_DIR" >> /etc/environment && \
-    rm -f /tmp/chromedriver.zip
+    apt-get install -y fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0 \
+                       libcairo2 libcups2 libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 \
+                       libpango-1.0-0 libvulkan1 libxcomposite1 libxdamage1 libxext6 \
+                       libxfixes3 libxkbcommon0 libxrandr2 xdg-utils && \
+    wget --no-verbose -O /tmp/chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}-1_amd64.deb && \
+    apt install -y /tmp/chrome.deb && rm /tmp/chrome.deb
 
 WORKDIR /home/runner
 
-RUN curl -f -L -o runner.tar.gz https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz \
-    && tar xzf ./runner.tar.gz \
-    && rm runner.tar.gz
-
-RUN curl -f -L -o runner-container-hooks.zip https://github.com/actions/runner-container-hooks/releases/download/v${RUNNER_CONTAINER_HOOKS_VERSION}/actions-runner-hooks-k8s-${RUNNER_CONTAINER_HOOKS_VERSION}.zip \
-    && unzip ./runner-container-hooks.zip -d ./k8s \
-    && rm runner-container-hooks.zip
+RUN curl -f -L -o runner.tar.gz https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz && \
+    tar xzf ./runner.tar.gz && rm runner.tar.gz && \
+    curl -f -L -o runner-container-hooks.zip https://github.com/actions/runner-container-hooks/releases/download/v${RUNNER_CONTAINER_HOOKS_VERSION}/actions-runner-hooks-k8s-${RUNNER_CONTAINER_HOOKS_VERSION}.zip && \
+    unzip ./runner-container-hooks.zip -d ./k8s && rm runner-container-hooks.zip
 
 USER runner

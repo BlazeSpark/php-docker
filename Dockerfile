@@ -17,9 +17,7 @@ ARG CHROME_VERSION="130.0.6723.69"
 ENV DEBIAN_FRONTEND=noninteractive \
     RUNNER_MANUALLY_TRAP_SIG=1 \
     ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1 \
-    CHROMEDRIVER_DIR="/usr/local/share/chromedriver-linux64" \
-    CHROME_BIN="/usr/bin/google-chrome" \
-    CHROMEWEBDRIVER="/usr/local/share/chromedriver-linux64"
+    CHROME_BIN="/usr/bin/google-chrome"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 

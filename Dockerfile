@@ -60,6 +60,19 @@ RUN apt-get update -qq && \
     wget --no-verbose -O /tmp/chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}-1_amd64.deb && \
     apt install -y /tmp/chrome.deb && rm /tmp/chrome.deb
 
+# Installazione di MinIO
+RUN wget https://dl.min.io/server/minio/release/linux-amd64/archive/minio_20241013133411.0.0_amd64.deb -O minio.deb && \
+    dpkg -i minio.deb
+
+# Installazione di MinIO Client
+RUN wget  https://dl.min.io/client/mc/release/linux-amd64/mc -O mc && \
+    chmod +x mc && mv mc /usr/local/bin/mc
+
+COPY /etc /etc
+
+RUN chmod +x /etc/init.d/minio && \
+    update-rc.d minio defaults
+
 WORKDIR /home/runner
 
 RUN curl -f -L -o runner.tar.gz https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz && \
